@@ -1,11 +1,12 @@
 {
   "name": "Smart Weather AI",
   "short_name": "WeatherAI",
-  "start_url": "./index.html",
+  "description": "Real-time weather, AQI, 24h and 7-day forecasts with advice.",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "icon-192.png",
