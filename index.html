@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Weather AI</title>
+
+<!-- PWA manifest -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+
+<style>
+:root{
+  --bg-color:#000;
+  --text-color:#fff;
+  --card-bg:linear-gradient(145deg,#1a1a1a,#111);
+  --transition:0.3s;
+}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,sans-serif;
+  background:var(--bg-color);
+  color:var(--text-color);
+  transition:background var(--transition),color var(--transition);
+}
+.app{
+  max-width:420px;
+  margin:20px auto;
+  padding:20px;
+  border-radius:25px;
+  background:var(--bg-color);
+  box-shadow:0 0 30px rgba(255,255,255,0.05);
+  transition:background var(--transition);
+}
+.heading{text-align:center;font-size:28px;font-weight:700;margin-bottom:20px;}
+.themeToggle{display:flex;justify-content:center;gap:10px;margin-bottom:20px;}
+.themeToggle button{padding:8px 15px;border-radius:20px;border:none;cursor:pointer;font-weight:600;background:#1c1c1e;color:white;transition:background var(--transition),color var(--transition);}
+.searchBox{display:flex;flex-direction:column;gap:15px;}
+.searchBox input,.searchBox button{padding:18px;border-radius:40px;border:none;font-size:18px;background:#1c1c1e;color:white;outline:none;transition:background var(--transition),color var(--transition);}
+.searchBox button{font-weight:600;cursor:pointer;}
+.locationTitle{text-align:center;font-size:20px;margin-top:10px;opacity:0.8;}
+.mainTemp{text-align:center;font-size:80px;font-weight:700;margin-top:10px;}
+.weatherIcon{text-align:center;font-size:60px;margin-top:5px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:10px;}
+.card{background:var(--card-bg);padding:20px;border-radius:25px;transition:background var(--transition);}
+.label{font-size:14px;opacity:0.7;}
+.value{font-size:22px;margin-top:8px;font-weight:600;transition:color var(--transition);}
+.footer{text-align:center;margin-top:30px;font-size:12px;opacity:0.6;}
+.segment h3{margin-top:30px;margin-bottom:10px;font-size:20px;opacity:0.8;text-align:left;}
+.aqi-green{color:#009966;}
+.aqi-yellow{color:#ffde33;}
+.aqi-orange{color:#ff9933;}
+.aqi-red{color:#cc0033;}
+.aqi-purple{color:#660099;}
+.aqi-maroon{color:#7e0023;}
+.card.aqi-green{background:#003300;}
+.card.aqi-yellow{background:#333300;}
+.card.aqi-orange{background:#663300;}
+.card.aqi-red{background:#330000;}
+.card.aqi-purple{background:#330033;}
+.card.aqi-maroon{background:#330019;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="heading">🌤 Smart Weather AI</div>
+
+<div class="themeToggle">
+  <button onclick="setTheme('light')">Light</button>
+  <button onclick="setTheme('dark')">Dark</button>
+  <button onclick="setTheme('oled')">OLED Black</button>
+</div>
+
+<div class="searchBox">
+<input type="text" id="cityInput" placeholder="Search city">
+<button onclick="searchCity()">Search</button>
+<button onclick="detectLocation()">📍 Use My Location</button>
+</div>
+
+<div class="locationTitle" id="locationInfo">Loading Kolkata...</div>
+<div class="mainTemp" id="mainTemp">--</div>
+<div class="weatherIcon" id="weatherIcon">🌤</div>
+
+<!-- Weather Segment -->
+<div class="segment">
+<h3>Weather</h3>
+<div class="grid">
+  <div class="card"><div class="label">Wind (km/h)</div><div class="value" id="windValue">--</div></div>
+  <div class="card"><div class="label">Humidity (%)</div><div class="value" id="humidityValue">--</div></div>
+</div>
+</div>
+
+<!-- Air Quality Segment -->
+<div class="segment">
+<h3>Air Quality</h3>
+<div class="grid">
+  <div class="card" id="aqiCard"><div class="label">AQI (US)</div><div class="value" id="aqiValue">--</div></div>
+  <div class="card"><div class="label">PM2.5</div><div class="value" id="pm25Value">--</div></div>
+  <div class="card"><div class="label">PM10</div><div class="value" id="pm10Value">--</div></div>
+  <div class="card"><div class="label">NO₂</div><div class="value" id="no2Value">--</div></div>
+</div>
+</div>
+
+<!-- Precipitation Segment -->
+<div class="segment">
+<h3>Precipitation</h3>
+<div class="grid">
+  <div class="card"><div class="label">Rain (mm)</div><div class="value" id="rainValue">--</div></div>
+  <div class="card"><div class="label">24h Rain</div><div class="value" id="rain24Value">--</div></div>
+  <div class="card"><div class="label">7 Day Rain</div><div class="value" id="rain7Value">--</div></div>
+</div>
+</div>
+
+<!-- Advice Segment -->
+<div class="segment">
+<h3>Advice / Lifestyle</h3>
+<div class="grid">
+  <div class="card"><div class="label">Recommended AC</div><div class="value" id="acAdvice">--</div></div>
+  <div class="card"><div class="label">AI Advice</div><div class="value" id="aiAdvice">--</div></div>
+</div>
+</div>
+
+<div class="footer">© Manik Roy <span id="year"></span>. All Rights Reserved.</div>
+</div>
+
+<script>
+document.getElementById("year").innerText=new Date().getFullYear();
+const DEFAULT_LAT=22.5726,DEFAULT_LON=88.3639,DEFAULT_CITY="Kolkata, India";
+
+function setTheme(mode){
+  if(mode==='light'){document.documentElement.style.setProperty('--bg-color','#f4f4f4');document.documentElement.style.setProperty('--text-color','#000');document.documentElement.style.setProperty('--card-bg','#e0e0e0');}
+  else if(mode==='dark'){document.documentElement.style.setProperty('--bg-color','#000');document.documentElement.style.setProperty('--text-color','#fff');document.documentElement.style.setProperty('--card-bg','linear-gradient(145deg,#1a1a1a,#111)');}
+  else if(mode==='oled'){document.documentElement.style.setProperty('--bg-color','#000');document.documentElement.style.setProperty('--text-color','#fff');document.documentElement.style.setProperty('--card-bg','#000');}
+}
+
+function getWeatherIcon(code){if(code===0)return"☀️";if(code<=3)return"⛅";if(code<=48)return"🌫";if(code<=67)return"🌧";if(code<=77)return"🌨";if(code<=82)return"🌦";if(code<=99)return"⛈";return"🌍";}
+function calculateUSaqi(pm25){if(pm25<=12)return Math.round((50/12)*pm25);if(pm25<=35.4)return Math.round(((100-51)/(35.4-12))*(pm25-12)+51);if(pm25<=55.4)return Math.round(((150-101)/(55.4-35.4))*(pm25-35.4)+101);if(pm25<=150.4)return Math.round(((200-151)/(150.4-55.4))*(pm25-55.4)+151);return Math.round(pm25*2);}
+function getCurrentHourIndex(times){const now=new Date().toISOString().slice(0,13);return times.findIndex(t=>t.startsWith(now));}
+function generateAdvice(temp,aqi){let advice="";if(temp>35)advice+="Extreme heat. Stay hydrated. ";else if(temp>28)advice+="Warm weather. Light clothes. ";else if(temp<10)advice+="Cold weather. Wear layers. ";if(aqi>150)advice+="Air unhealthy. Wear mask.";else if(aqi>80)advice+="Sensitive groups limit exposure.";else advice+="Air quality acceptable.";return advice;}
+function recommendedAC(temp){if(temp>=35)return"24°C";if(temp>=30)return"25°C";if(temp>=25)return"26°C";return"No AC needed";}
+function estimatePower(temp){if(temp>=35)return"High ⚡";if(temp>=30)return"Medium ⚡";if(temp>=25)return"Low ⚡";return"Minimal";}
+
+async function loadWeather(lat,lon){
+try{
+let weatherURL=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relative_humidity_2m,precipitation&daily=precipitation_sum&timezone=auto`;
+let airURL=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm2_5,pm10,nitrogen_dioxide&timezone=auto`;
+let weatherData=await(await fetch(weatherURL)).json();
+let airData=await(await fetch(airURL)).json();
+let temp=weatherData.current_weather.temperature;
+let wind=weatherData.current_weather.windspeed;
+let code=weatherData.current_weather.weathercode;
+let hourIndex=getCurrentHourIndex(weatherData.hourly.time);if(hourIndex<0)hourIndex=0;
+let humidity=weatherData.hourly.relative_humidity_2m[hourIndex]||0;
+let rain=weatherData.hourly.precipitation[hourIndex]||0;
+let rain24=weatherData.hourly.precipitation.slice(Math.max(0,hourIndex-23),hourIndex+1).reduce((a,b)=>a+b,0);
+let rain7=weatherData.daily.precipitation_sum.slice(0,7).reduce((a,b)=>a+b,0);
+let airIndex=getCurrentHourIndex(airData.hourly.time);if(airIndex<0)airIndex=0;
+function safeValue(array,index){if(!array||array.length===0)return 0;let val=array[Math.min(index,array.length-1)];if(val===null||val===undefined) val=array.find(v=>v!==null&&v!==undefined)||0;return val;}
+let pm25=safeValue(airData.hourly?.pm2_5,airIndex);
+let pm10=safeValue(airData.hourly?.pm10,airIndex);
+let no2=safeValue(airData.hourly?.nitrogen_dioxide,airIndex);
+let aqi=calculateUSaqi(pm25);
+
+document.getElementById("mainTemp").innerText=temp+"°C";
+document.getElementById("windValue").innerText=wind;
+document.getElementById("humidityValue").innerText=humidity;
+document.getElementById("rainValue").innerText=rain;
+document.getElementById("weatherIcon").innerText=getWeatherIcon(code);
+document.getElementById("pm25Value").innerText=pm25;
+document.getElementById("pm10Value").innerText=pm10;
+document.getElementById("no2Value").innerText=no2;
+document.getElementById("rain24Value").innerText=rain24.toFixed(1);
+document.getElementById("rain7Value").innerText=rain7.toFixed(1);
+document.getElementById("acAdvice").innerText=recommendedAC(temp);
+document.getElementById("aiAdvice").innerText=generateAdvice(temp,aqi)+" Power: "+estimatePower(temp);
+
+let aqiEl=document.getElementById("aqiValue");
+let aqiCard=document.getElementById("aqiCard");
+aqiEl.className="value"; aqiCard.className="card";
+aqiEl.innerText=aqi;
+if(aqi<=50){aqiEl.classList.add("aqi-green"); aqiCard.classList.add("aqi-green");}
+else if(aqi<=100){aqiEl.classList.add("aqi-yellow"); aqiCard.classList.add("aqi-yellow");}
+else if(aqi<=150){aqiEl.classList.add("aqi-orange"); aqiCard.classList.add("aqi-orange");}
+else if(aqi<=200){aqiEl.classList.add("aqi-red"); aqiCard.classList.add("aqi-red");}
+else if(aqi<=300){aqiEl.classList.add("aqi-purple"); aqiCard.classList.add("aqi-purple");}
+else{aqiEl.classList.add("aqi-maroon"); aqiCard.classList.add("aqi-maroon");}
+
+}catch{document.getElementById("locationInfo").innerText="Weather fetch failed.";}
+}
+
+async function loadIPLocation(){
+try{let res=await fetch("https://ipapi.co/json/");let data=await res.json();
+if(data.latitude && data.longitude){document.getElementById("locationInfo").innerText=data.city+", "+data.country_name;
+loadWeather(data.latitude,data.longitude);return;}}catch{}
+document.getElementById("locationInfo").innerText=DEFAULT_CITY;
+loadWeather(DEFAULT_LAT,DEFAULT_LON);
+}
+
+function detectLocation(){
+if(!navigator.geolocation){loadIPLocation();return;}
+navigator.geolocation.getCurrentPosition(async pos=>{
+let lat=pos.coords.latitude;
+let lon=pos.coords.longitude;
+try{
+let geoRes=await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`);
+let geoData=await geoRes.json();
+if(geoData.results && geoData.results.length>0){
+document.getElementById("locationInfo").innerText=geoData.results[0].name+", "+geoData.results[0].country;
+}else{document.getElementById("locationInfo").innerText="Your Location";}
+}catch{document.getElementById("locationInfo").innerText="Your Location";}
+loadWeather(lat,lon);},()=>loadIPLocation());
+}
+
+async function searchCity(){
+let city=document.getElementById("cityInput").value.trim();
+if(!city)return;
+document.getElementById("locationInfo").innerText="Searching...";
+let geoData=await(await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+city)).json();
+if(!geoData.results){document.getElementById("locationInfo").innerText="City not found";return;}
+let{latitude,longitude,name,country}=geoData.results[0];
+document.getElementById("locationInfo").innerText=name+", "+country;
+loadWeather(latitude,longitude);
+}
+
+window.onload=detectLocation;
+
+// ✅ PWA: Service Worker
+if("serviceWorker" in navigator){
+window.addEventListener("load",()=>{
+navigator.serviceWorker.register("sw.js").then(()=>console.log("Service Worker Registered"))
+.catch(err=>console.log("SW Registration Failed:",err));
+});
+}
+</script>
+</body>
+</html>
