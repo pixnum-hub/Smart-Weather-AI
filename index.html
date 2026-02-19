@@ -4,11 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Weather AI</title>
-
-<!-- PWA manifest -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#000000">
-
 <style>
 :root{
   --bg-color:#000;
@@ -42,11 +39,15 @@ body{
 .mainTemp{text-align:center;font-size:80px;font-weight:700;margin-top:10px;}
 .weatherIcon{text-align:center;font-size:60px;margin-top:5px;}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:10px;}
-.card{background:var(--card-bg);padding:20px;border-radius:25px;transition:background var(--transition);}
+.card{background:var(--card-bg);padding:20px;border-radius:25px;transition:background var(--transition);flex:0 0 auto;text-align:center;}
 .label{font-size:14px;opacity:0.7;}
 .value{font-size:22px;margin-top:8px;font-weight:600;transition:color var(--transition);}
 .footer{text-align:center;margin-top:30px;font-size:12px;opacity:0.6;}
 .segment h3{margin-top:30px;margin-bottom:10px;font-size:20px;opacity:0.8;text-align:left;}
+.scroll-container{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.3) transparent;}
+.scroll-container::-webkit-scrollbar{height:6px;}
+.scroll-container::-webkit-scrollbar-track{background:transparent;}
+.scroll-container::-webkit-scrollbar-thumb{background-color:rgba(255,255,255,0.3);border-radius:3px;}
 .aqi-green{color:#009966;}
 .aqi-yellow{color:#ffde33;}
 .aqi-orange{color:#ff9933;}
@@ -112,6 +113,18 @@ body{
 </div>
 </div>
 
+<!-- 24-Hour Forecast Segment -->
+<div class="segment">
+<h3>24-Hour Temperature Forecast</h3>
+<div class="scroll-container" id="hourlyForecastGrid"></div>
+</div>
+
+<!-- 7-Day Forecast Segment -->
+<div class="segment">
+<h3>7-Day Temperature Forecast</h3>
+<div class="scroll-container" id="forecastGrid"></div>
+</div>
+
 <!-- Advice Segment -->
 <div class="segment">
 <h3>Advice / Lifestyle</h3>
@@ -143,10 +156,11 @@ function estimatePower(temp){if(temp>=35)return"High ⚡";if(temp>=30)return"Med
 
 async function loadWeather(lat,lon){
 try{
-let weatherURL=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relative_humidity_2m,precipitation&daily=precipitation_sum&timezone=auto`;
+let weatherURL=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,relative_humidity_2m,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`;
 let airURL=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm2_5,pm10,nitrogen_dioxide&timezone=auto`;
-let weatherData=await(await fetch(weatherURL)).json();
-let airData=await(await fetch(airURL)).json();
+let weatherData=await (await fetch(weatherURL)).json();
+let airData=await (await fetch(airURL)).json();
+
 let temp=weatherData.current_weather.temperature;
 let wind=weatherData.current_weather.windspeed;
 let code=weatherData.current_weather.weathercode;
@@ -155,6 +169,7 @@ let humidity=weatherData.hourly.relative_humidity_2m[hourIndex]||0;
 let rain=weatherData.hourly.precipitation[hourIndex]||0;
 let rain24=weatherData.hourly.precipitation.slice(Math.max(0,hourIndex-23),hourIndex+1).reduce((a,b)=>a+b,0);
 let rain7=weatherData.daily.precipitation_sum.slice(0,7).reduce((a,b)=>a+b,0);
+
 let airIndex=getCurrentHourIndex(airData.hourly.time);if(airIndex<0)airIndex=0;
 function safeValue(array,index){if(!array||array.length===0)return 0;let val=array[Math.min(index,array.length-1)];if(val===null||val===undefined) val=array.find(v=>v!==null&&v!==undefined)||0;return val;}
 let pm25=safeValue(airData.hourly?.pm2_5,airIndex);
@@ -175,10 +190,8 @@ document.getElementById("rain7Value").innerText=rain7.toFixed(1);
 document.getElementById("acAdvice").innerText=recommendedAC(temp);
 document.getElementById("aiAdvice").innerText=generateAdvice(temp,aqi)+" Power: "+estimatePower(temp);
 
-let aqiEl=document.getElementById("aqiValue");
-let aqiCard=document.getElementById("aqiCard");
-aqiEl.className="value"; aqiCard.className="card";
-aqiEl.innerText=aqi;
+let aqiEl=document.getElementById("aqiValue");let aqiCard=document.getElementById("aqiCard");
+aqiEl.className="value"; aqiCard.className="card"; aqiEl.innerText=aqi;
 if(aqi<=50){aqiEl.classList.add("aqi-green"); aqiCard.classList.add("aqi-green");}
 else if(aqi<=100){aqiEl.classList.add("aqi-yellow"); aqiCard.classList.add("aqi-yellow");}
 else if(aqi<=150){aqiEl.classList.add("aqi-orange"); aqiCard.classList.add("aqi-orange");}
@@ -186,13 +199,38 @@ else if(aqi<=200){aqiEl.classList.add("aqi-red"); aqiCard.classList.add("aqi-red
 else if(aqi<=300){aqiEl.classList.add("aqi-purple"); aqiCard.classList.add("aqi-purple");}
 else{aqiEl.classList.add("aqi-maroon"); aqiCard.classList.add("aqi-maroon");}
 
+// 24-Hour Forecast Horizontal
+const hourlyGrid=document.getElementById("hourlyForecastGrid");
+hourlyGrid.innerHTML="";
+for(let i=0;i<24;i++){
+let hourTime=new Date(); hourTime.setHours(hourTime.getHours()+i);
+let hourStr=hourTime.getHours()+":00";
+let tempHour=weatherData.hourly.temperature_2m[i]||0;
+let card=document.createElement("div");
+card.className="card";
+card.innerHTML=`<div class="label">${hourStr}</div><div class="value">${tempHour}° / ${tempHour}°</div>`;
+hourlyGrid.appendChild(card);
+}
+
+// 7-Day Forecast Horizontal
+const forecastGrid=document.getElementById("forecastGrid");
+forecastGrid.innerHTML="";
+for(let i=0;i<7;i++){
+let dayName=new Date(weatherData.daily.time[i]).toLocaleDateString('en-US',{weekday:'short'});
+let minTemp=weatherData.daily.temperature_2m_min[i];
+let maxTemp=weatherData.daily.temperature_2m_max[i];
+let card=document.createElement("div");
+card.className="card";
+card.innerHTML=`<div class="label">${dayName}</div><div class="value">${minTemp}° / ${maxTemp}°</div>`;
+forecastGrid.appendChild(card);
+}
+
 }catch{document.getElementById("locationInfo").innerText="Weather fetch failed.";}
 }
 
 async function loadIPLocation(){
 try{let res=await fetch("https://ipapi.co/json/");let data=await res.json();
-if(data.latitude && data.longitude){document.getElementById("locationInfo").innerText=data.city+", "+data.country_name;
-loadWeather(data.latitude,data.longitude);return;}}catch{}
+if(data.latitude&&data.longitude){document.getElementById("locationInfo").innerText=data.city+", "+data.country_name;loadWeather(data.latitude,data.longitude);return;}}catch{}
 document.getElementById("locationInfo").innerText=DEFAULT_CITY;
 loadWeather(DEFAULT_LAT,DEFAULT_LON);
 }
@@ -205,9 +243,8 @@ let lon=pos.coords.longitude;
 try{
 let geoRes=await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`);
 let geoData=await geoRes.json();
-if(geoData.results && geoData.results.length>0){
-document.getElementById("locationInfo").innerText=geoData.results[0].name+", "+geoData.results[0].country;
-}else{document.getElementById("locationInfo").innerText="Your Location";}
+if(geoData.results && geoData.results.length>0){document.getElementById("locationInfo").innerText=geoData.results[0].name+", "+geoData.results[0].country;}
+else{document.getElementById("locationInfo").innerText="Your Location";}
 }catch{document.getElementById("locationInfo").innerText="Your Location";}
 loadWeather(lat,lon);},()=>loadIPLocation());
 }
@@ -225,13 +262,8 @@ loadWeather(latitude,longitude);
 
 window.onload=detectLocation;
 
-// ✅ PWA: Service Worker
-if("serviceWorker" in navigator){
-window.addEventListener("load",()=>{
-navigator.serviceWorker.register("sw.js").then(()=>console.log("Service Worker Registered"))
-.catch(err=>console.log("SW Registration Failed:",err));
-});
-}
+// PWA Service Worker
+if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").then(()=>console.log("Service Worker Registered")).catch(err=>console.log("SW Registration Failed:",err));});}
 </script>
 </body>
 </html>
