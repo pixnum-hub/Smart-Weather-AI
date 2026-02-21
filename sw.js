@@ -4,8 +4,7 @@ const ASSETS = [
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png',
-  // Add any CSS/JS files if separate
+  './icon-512.png'
 ];
 
 // Install - cache static assets
@@ -20,7 +19,7 @@ self.addEventListener('install', event => {
 // Activate - cleanup old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => 
+    caches.keys().then(keys =>
       Promise.all(keys.map(key => {
         if (key !== CACHE_NAME) return caches.delete(key);
       }))
@@ -33,7 +32,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Cache API responses dynamically
+  // Dynamically cache API responses
   if(url.hostname.includes('open-meteo.com') || url.hostname.includes('ipapi.co')){
     event.respondWith(
       caches.open(CACHE_NAME).then(cache =>
@@ -48,7 +47,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // For app assets
+  // Cache other app assets
   event.respondWith(
     caches.match(event.request).then(resp => resp || fetch(event.request))
   );
