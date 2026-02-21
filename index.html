@@ -119,10 +119,22 @@ body{
 <div class="scroll-container" id="hourlyForecastGrid"></div>
 </div>
 
-<!-- 7-Day Forecast Segment -->
+<!-- 24-Hour AQI Forecast Segment -->
+<div class="segment">
+<h3>24-Hour AQI Forecast</h3>
+<div class="scroll-container" id="hourlyAQIGrid"></div>
+</div>
+
+<!-- 7-Day Temperature Forecast Segment -->
 <div class="segment">
 <h3>7-Day Temperature Forecast</h3>
 <div class="scroll-container" id="forecastGrid"></div>
+</div>
+
+<!-- 7-Day AQI Forecast Segment -->
+<div class="segment">
+<h3>7-Day AQI Forecast</h3>
+<div class="scroll-container" id="weeklyAQIGrid"></div>
 </div>
 
 <!-- Advice Segment -->
@@ -139,7 +151,6 @@ body{
 
 <script>
 document.getElementById("year").innerText=new Date().getFullYear();
-
 const DEFAULT_LAT=22.5726,DEFAULT_LON=88.3639,DEFAULT_CITY="Kolkata, India";
 
 function setTheme(mode){
@@ -149,21 +160,10 @@ function setTheme(mode){
 }
 
 function getWeatherIcon(code){if(code===0)return"☀️";if(code<=3)return"⛅";if(code<=48)return"🌫";if(code<=67)return"🌧";if(code<=77)return"🌨";if(code<=82)return"🌦";if(code<=99)return"⛈";return"🌍";}
-
-// Correct US AQI from PM2.5
-function calculateUSaqi(pm25){
-  if(pm25 <= 12) return Math.round((50/12)*pm25);
-  else if(pm25 <= 35.4) return Math.round(((100-51)/(35.4-12))*(pm25-12)+51);
-  else if(pm25 <= 55.4) return Math.round(((150-101)/(55.4-35.4))*(pm25-35.4)+101);
-  else if(pm25 <= 150.4) return Math.round(((200-151)/(150.4-55.4))*(pm25-55.4)+151);
-  else if(pm25 <= 250.4) return Math.round(((300-201)/(250.4-150.4))*(pm25-150.4)+201);
-  else return Math.round(((500-301)/(500-250.4))*(pm25-250.4)+301);
-}
-
+function calculateUSaqi(pm25){if(pm25<=12)return Math.round((50/12)*pm25);else if(pm25<=35.4)return Math.round(((100-51)/(35.4-12))*(pm25-12)+51);else if(pm25<=55.4)return Math.round(((150-101)/(55.4-35.4))*(pm25-35.4)+101);else if(pm25<=150.4)return Math.round(((200-151)/(150.4-55.4))*(pm25-55.4)+151);else if(pm25<=250.4)return Math.round(((300-201)/(250.4-150.4))*(pm25-150.4)+201);else return Math.round(((500-301)/(500-250.4))*(pm25-250.4)+301);}
 function generateAdvice(temp,aqi){let advice="";if(temp>35)advice+="Extreme heat. Stay hydrated. ";else if(temp>28)advice+="Warm weather. Light clothes. ";else if(temp<10)advice+="Cold weather. Wear layers. ";if(aqi>150)advice+="Air unhealthy. Wear mask.";else if(aqi>80)advice+="Sensitive groups limit exposure.";else advice+="Air quality acceptable.";return advice;}
 function recommendedAC(temp){if(temp>=35)return"24°C";if(temp>=30)return"25°C";if(temp>=25)return"26°C";return"No AC needed";}
 function estimatePower(temp){if(temp>=35)return"High ⚡";if(temp>=30)return"Medium ⚡";if(temp>=25)return"Low ⚡";return"Minimal";}
-
 function getCurrentHourIndex(times){const now=new Date().toISOString().slice(0,13);return times.findIndex(t=>t.startsWith(now));}
 function safeValue(array,index){if(!array||array.length===0)return 0;let val=array[Math.min(index,array.length-1)];if(val==null) val=array.find(v=>v!=null)||0;return val;}
 
@@ -173,7 +173,6 @@ let weatherURL=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude
 let airURL=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm2_5,pm10,nitrogen_dioxide&timezone=auto`;
 let weatherData=await (await fetch(weatherURL)).json();
 let airData=await (await fetch(airURL)).json();
-
 let temp=weatherData.current_weather.temperature;
 let wind=weatherData.current_weather.windspeed;
 let code=weatherData.current_weather.weathercode;
@@ -182,13 +181,11 @@ let humidity=weatherData.hourly.relative_humidity_2m[hourIndex]||0;
 let rain=weatherData.hourly.precipitation[hourIndex]||0;
 let rain24=weatherData.hourly.precipitation.slice(Math.max(0,hourIndex-23),hourIndex+1).reduce((a,b)=>a+b,0);
 let rain7=weatherData.daily.precipitation_sum.slice(0,7).reduce((a,b)=>a+b,0);
-
 let airIndex=getCurrentHourIndex(airData.hourly.time);if(airIndex<0)airIndex=0;
 let pm25=safeValue(airData.hourly?.pm2_5,airIndex);
 let pm10=safeValue(airData.hourly?.pm10,airIndex);
 let no2=safeValue(airData.hourly?.nitrogen_dioxide,airIndex);
 let aqi=calculateUSaqi(pm25);
-
 document.getElementById("mainTemp").innerText=temp+"°C";
 document.getElementById("windValue").innerText=wind;
 document.getElementById("humidityValue").innerText=humidity;
@@ -201,9 +198,7 @@ document.getElementById("rain24Value").innerText=rain24.toFixed(1);
 document.getElementById("rain7Value").innerText=rain7.toFixed(1);
 document.getElementById("acAdvice").innerText=recommendedAC(temp);
 document.getElementById("aiAdvice").innerText=generateAdvice(temp,aqi)+" Power: "+estimatePower(temp);
-
-let aqiEl=document.getElementById("aqiValue");let aqiCard=document.getElementById("aqiCard");
-aqiEl.className="value"; aqiCard.className="card"; aqiEl.innerText=aqi;
+let aqiEl=document.getElementById("aqiValue");let aqiCard=document.getElementById("aqiCard");aqiEl.className="value"; aqiCard.className="card"; aqiEl.innerText=aqi;
 if(aqi<=50){aqiEl.classList.add("aqi-green"); aqiCard.classList.add("aqi-green");}
 else if(aqi<=100){aqiEl.classList.add("aqi-yellow"); aqiCard.classList.add("aqi-yellow");}
 else if(aqi<=150){aqiEl.classList.add("aqi-orange"); aqiCard.classList.add("aqi-orange");}
@@ -211,70 +206,106 @@ else if(aqi<=200){aqiEl.classList.add("aqi-red"); aqiCard.classList.add("aqi-red
 else if(aqi<=300){aqiEl.classList.add("aqi-purple"); aqiCard.classList.add("aqi-purple");}
 else{aqiEl.classList.add("aqi-maroon"); aqiCard.classList.add("aqi-maroon");}
 
-// 24-Hour Forecast (hourly temp)
+// 24-Hour Temperature
 const hourlyGrid=document.getElementById("hourlyForecastGrid");
 hourlyGrid.innerHTML="";
-for(let i=0;i<24;i++){
-let hourTime=new Date(); hourTime.setHours(hourTime.getHours()+i);
-let hourStr=hourTime.getHours()+":00";
-let tempHour=weatherData.hourly.temperature_2m[i]||0;
-let card=document.createElement("div");
-card.className="card";
-card.innerHTML=`<div class="label">${hourStr}</div><div class="value">${tempHour}°</div>`;
-hourlyGrid.appendChild(card);
+for(let i=0;i<24;i++){let hourTime=new Date(); hourTime.setHours(hourTime.getHours()+i); let hourStr=hourTime.getHours()+":00"; let tempHour=weatherData.hourly.temperature_2m[i]||0; let card=document.createElement("div"); card.className="card"; card.innerHTML=`<div class="label">${hourStr}</div><div class="value">${tempHour}°</div>`; hourlyGrid.appendChild(card);}
+
+// 24-Hour AQI
+const hourlyAQIGrid = document.getElementById("hourlyAQIGrid");
+hourlyAQIGrid.innerHTML="";
+for (let i = 0; i < 24; i++) {
+  let hourTime = new Date(); hourTime.setHours(hourTime.getHours() + i);
+  let hourStr = hourTime.getHours() + ":00";
+  let pm25Hour = safeValue(airData.hourly?.pm2_5, i);
+  let aqiHour = calculateUSaqi(pm25Hour);
+  let card = document.createElement("div");
+  card.className = "card";
+  let colorClass = "";
+  if (aqiHour <= 50) colorClass = "aqi-green";
+  else if (aqiHour <= 100) colorClass = "aqi-yellow";
+  else if (aqiHour <= 150) colorClass = "aqi-orange";
+  else if (aqiHour <= 200) colorClass = "aqi-red";
+  else if (aqiHour <= 300) colorClass = "aqi-purple";
+  else colorClass = "aqi-maroon";
+  card.innerHTML = `<div class="label">${hourStr}</div><div class="value ${colorClass}">${aqiHour}</div>`;
+  hourlyAQIGrid.appendChild(card);
 }
 
-// 7-Day Forecast Horizontal (min/max)
+// 7-Day Temperature Forecast
 const forecastGrid=document.getElementById("forecastGrid");
 forecastGrid.innerHTML="";
 for(let i=0;i<7;i++){
 let dayName=new Date(weatherData.daily.time[i]).toLocaleDateString('en-US',{weekday:'short'});
 let minTemp=weatherData.daily.temperature_2m_min[i];
 let maxTemp=weatherData.daily.temperature_2m_max[i];
-let card=document.createElement("div");
-card.className="card";
-card.innerHTML=`<div class="label">${dayName}</div><div class="value">${minTemp}° / ${maxTemp}°</div>`;
-forecastGrid.appendChild(card);
+let card=document.createElement("div"); card.className="card"; card.innerHTML=`<div class="label">${dayName}</div><div class="value">${minTemp}° / ${maxTemp}°</div>`; forecastGrid.appendChild(card);
 }
 
-}catch{document.getElementById("locationInfo").innerText="Weather fetch failed.";}
+// 7-Day AQI Forecast
+const weeklyAQIGrid = document.getElementById("weeklyAQIGrid");
+weeklyAQIGrid.innerHTML="";
+for (let i = 0; i < 7; i++) {
+  let pm25Daily = airData.hourly.pm2_5.slice(i*24,(i+1)*24).reduce((a,b)=>a+safeValue([b],0),0)/24;
+  let aqiDaily = calculateUSaqi(pm25Daily);
+  let dayName = new Date(weatherData.daily.time[i]).toLocaleDateString('en-US',{weekday:'short'});
+  let card = document.createElement("div");
+  card.className = "card";
+  let colorClass = "";
+  if (aqiDaily <= 50) colorClass = "aqi-green";
+  else if (aqiDaily <= 100) colorClass = "aqi-yellow";
+  else if (aqiDaily <= 150) colorClass = "aqi-orange";
+  else if (aqiDaily <= 200) colorClass = "aqi-red";
+  else if (aqiDaily <= 300) colorClass = "aqi-purple";
+  else colorClass = "aqi-maroon";
+  card.innerHTML = `<div class="label">${dayName}</div><div class="value ${colorClass}">${aqiDaily}</div>`;
+  weeklyAQIGrid.appendChild(card);
 }
 
-async function loadIPLocation(){
-try{let res=await fetch("https://ipapi.co/json/");let data=await res.json();
-if(data.latitude&&data.longitude){document.getElementById("locationInfo").innerText=data.city+", "+data.country_name;loadWeather(data.latitude,data.longitude);return;}}catch{}
-document.getElementById("locationInfo").innerText=DEFAULT_CITY;
-loadWeather(DEFAULT_LAT,DEFAULT_LON);
-}
-
-function detectLocation(){
-if(!navigator.geolocation){loadIPLocation();return;}
-navigator.geolocation.getCurrentPosition(async pos=>{
-let lat=pos.coords.latitude;
-let lon=pos.coords.longitude;
-try{
-let geoRes=await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en`);
-let geoData=await geoRes.json();
-if(geoData.results && geoData.results.length>0){document.getElementById("locationInfo").innerText=geoData.results[0].name+", "+geoData.results[0].country;}
-else{document.getElementById("locationInfo").innerText="Your Location";}
-}catch{document.getElementById("locationInfo").innerText="Your Location";}
-loadWeather(lat,lon);},()=>loadIPLocation());
+}catch(err){alert("Weather/AQI data failed to load."); console.log(err);}
 }
 
 async function searchCity(){
-let city=document.getElementById("cityInput").value.trim();
-if(!city)return;
-document.getElementById("locationInfo").innerText="Searching...";
-let geoData=await(await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+city)).json();
-if(!geoData.results){document.getElementById("locationInfo").innerText="City not found";return;}
-let{latitude,longitude,name,country}=geoData.results[0];
+let city=document.getElementById("cityInput").value;if(!city)return;
+try{
+let geoRes=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}`);
+let geoData=await geoRes.json();
+if(!geoData.results){alert("City not found");return;}
+let lat=geoData.results[0].latitude,lon=geoData.results[0].longitude,name=geoData.results[0].name,country=geoData.results[0].country;
 document.getElementById("locationInfo").innerText=name+", "+country;
-loadWeather(latitude,longitude);
+loadWeather(lat,lon);
+}catch{alert("Error fetching city data");}
+}
+
+async function detectLocation(){
+if(navigator.geolocation){navigator.geolocation.getCurrentPosition(async pos=>{
+let lat=pos.coords.latitude,lon=pos.coords.longitude;
+document.getElementById("locationInfo").innerText="Detecting...";
+try{
+let geoRes=await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}`);
+let geoData=await geoRes.json();
+let name="Your Location",country="";
+if(geoData.results){name=geoData.results[0].name;country=geoData.results[0].country;}
+document.getElementById("locationInfo").innerText=name+", "+country;
+}catch{document.getElementById("locationInfo").innerText=DEFAULT_CITY;}
+loadWeather(lat,lon);
+},loadIPLocation);}else{loadIPLocation();}
+}
+
+async function loadIPLocation(){
+try{
+let res=await fetch("https://ipapi.co/json/");
+let data=await res.json();
+let lat=data.latitude,lon=data.longitude,city=data.city,country=data.country_name;
+document.getElementById("locationInfo").innerText=city+", "+country;
+loadWeather(lat,lon);
+}catch{document.getElementById("locationInfo").innerText=DEFAULT_CITY; loadWeather(DEFAULT_LAT,DEFAULT_LON);}
 }
 
 window.onload=detectLocation;
 
-if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").then(()=>console.log("Service Worker Registered")).catch(err=>console.log("SW Registration Failed:",err));});}
+// Register service worker
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').then(()=>console.log("SW Registered")).catch(err=>console.log("SW failed:",err));});}
 </script>
 </body>
 </html>
